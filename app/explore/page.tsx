@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button'
 // ... (keep existing TravelInfo type)
 
 export default function ExplorePage() {
-  const [results, setResults] = useState<TravelInfo | null>(null)
+  const [results, setResults] = useState<null>(null)
   const [loading, setLoading] = useState(false)
   const [experience, setExperience] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
