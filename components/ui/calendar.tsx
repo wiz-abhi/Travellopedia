@@ -1,13 +1,13 @@
-'use client'
+'use client';
 
-import * as React from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { DayPicker } from 'react-day-picker'
+import * as React from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { DayPicker } from 'react-day-picker';
 
-import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>
+export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
 function Calendar({
   className,
@@ -22,8 +22,8 @@ function Calendar({
       classNames={{
         months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
         month: 'space-y-4',
-        caption: 'flex justify-center pt-1 relative items-center',
-        caption_label: 'text-sm font-medium',
+        caption: 'flex justify-center pt-1 relative items-center', // Customized caption style
+        caption_label: 'text-sm font-medium', // Customize caption label style
         nav: 'space-x-1 flex items-center',
         nav_button: cn(
           buttonVariants({ variant: 'outline' }),
@@ -53,14 +53,11 @@ function Calendar({
         day_hidden: 'invisible',
         ...classNames,
       }}
-      components={{
-        PrevButton: (props) => <ChevronLeft className="h-4 w-4" {...props} />,
-        NextButton: (props) => <ChevronRight className="h-4 w-4" {...props} />,
-      }}
       {...props}
     />
-  )
+  );
 }
-Calendar.displayName = 'Calendar'
 
-export { Calendar }
+Calendar.displayName = 'Calendar';
+
+export { Calendar };
