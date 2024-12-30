@@ -22,8 +22,7 @@ import { Suggestions } from './components/suggestions'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
-// ... (keep existing TravelInfo type)
-
+// TravelInfo type definition
 type TravelInfo = {
   attractions: string[]
   best_time: string
@@ -154,37 +153,37 @@ export default function ExplorePage() {
                 <ResultCard
                   icon={MapPin}
                   title="Must-Visit Places"
-                  content={results.attractions}
+                  content={results?.attractions} // Optional chaining
                 />
                 <ResultCard
                   icon={Calendar}
                   title="Best Time to Visit"
-                  content={results.best_time}
+                  content={results?.best_time} // Optional chaining
                 />
                 <ResultCard
                   icon={Plane}
                   title="Getting Around"
-                  content={results.transportation}
+                  content={results?.transportation} // Optional chaining
                 />
                 <ResultCard
                   icon={Hotel}
                   title="Where to Stay"
-                  content={results.accommodation}
+                  content={results?.accommodation} // Optional chaining
                 />
                 <ResultCard
                   icon={Cloud}
                   title="Weather"
-                  content={results.weather}
+                  content={results?.weather} // Optional chaining
                 />
                 <ResultCard
                   icon={DollarSign}
                   title="Budget Estimate"
-                  content={results.estimated_budget}
+                  content={results?.estimated_budget} // Optional chaining
                 />
                 <ResultCard
                   icon={Lightbulb}
                   title="Personalized Suggestions"
-                  content={results.personalized_suggestions}
+                  content={results?.personalized_suggestions} // Optional chaining
                   className="md:col-span-2"
                 />
               </div>
