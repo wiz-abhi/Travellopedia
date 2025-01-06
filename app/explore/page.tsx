@@ -111,6 +111,7 @@ export default function ExplorePage() {
         description: 'Please sign in to use this feature',
         variant: 'destructive',
       })
+      console.log(results?.accommodation);
       return
     }
 

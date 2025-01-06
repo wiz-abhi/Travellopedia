@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
   try {
     const { userId } = auth()
-    
+
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -26,8 +26,8 @@ export async function POST(req: Request) {
       throw new Error('Missing Azure OpenAI Deployment Name')
     }
 
-    // Fetch the OpenAI response with timeout handling
-    const completion = await openAIClient.getChatCompletions(
+    // Define the OpenAI request
+    const openAIRequest = openAIClient.getChatCompletions(
       process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
       [
         {
@@ -48,39 +48,60 @@ export async function POST(req: Request) {
           role: "user",
           content: `Destination: ${query}\nDesired Experience: ${experience}\nTravel Dates: ${dateRange.from} to ${dateRange.to}`
         }
-      ],
-      {
-        signal: controller.signal, // Associate the timeout with the request
-        responseFormat: { type: "json_object" }
-      }
-    )
+      ]
+    );
+
+    // Use Promise.race to implement a timeout
+    const result = await Promise.race([
+      openAIRequest,
+      new Promise<Error>((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout')), TIME_LIMIT)
+      ),
+    ]);
 
     clearTimeout(timeoutId); // Clear the timeout when the response is received
-
-    const result = completion.choices[0].message?.content
-    if (!result) {
-      throw new Error('No response from Azure OpenAI')
-    }
 
     const endTime = performance.now(); // Log end time
     console.log(`Time taken: ${(endTime - startTime).toFixed(2)}ms`); // Log time taken
 
-    return NextResponse.json(JSON.parse(result))
+    if (result instanceof Error) {
+      throw result; // If result is an error (timeout), throw it
+    }
+
+    const response = result.choices[0].message?.content;
+    if (!response) {
+      throw new Error('No response from Azure OpenAI');
+    }
+
+    // Clean the response to remove markdown formatting
+    const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    // Parse the cleaned response
+    return NextResponse.json(JSON.parse(cleanResponse));
   } catch (error) {
     console.error('Error:', error)
 
-    // If the error is related to timeout or network issues, send a specific message
-    if (error.message.includes('timeout') || error.message.includes('network')) {
+    // Narrowing down the error type using type guard
+    if (error instanceof Error) {
+      // If the error is related to timeout or network issues, send a specific message
+      if (error.message === 'Timeout' || error.message.includes('network')) {
+        return NextResponse.json(
+          { error: 'Slow Internet Connection. Please try again later.' },
+          { status: 504 } // Gateway Timeout
+        )
+      }
+
+      // For general errors, send a fallback error message
       return NextResponse.json(
-        { error: 'Slow Internet Connection. Please try again later.' },
-        { status: 504 } // Gateway Timeout
+        { error: 'Failed to process request. Please try again later.' },
+        { status: 500 }
       )
     }
 
-    // For general errors, send a fallback error message
+    // If error is not of type Error, return a generic message
     return NextResponse.json(
-      { error: 'Failed to process request. Please try again later.' },
+      { error: 'Unknown error occurred. Please try again later.' },
       { status: 500 }
-    )
+    );
   }
 }
