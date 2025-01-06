@@ -5,6 +5,7 @@ import { auth } from '@clerk/nextjs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
+  const startTime = performance.now(); // Log start time
   try {
     const { userId } = auth()
     
@@ -50,6 +51,9 @@ export async function POST(req: Request) {
     if (!result) {
       throw new Error('No response from Azure OpenAI')
     }
+
+    const endTime = performance.now(); // Log end time
+    console.log(`Time taken: ${(endTime - startTime).toFixed(2)}ms`); // Log time taken
 
     return NextResponse.json(JSON.parse(result))
   } catch (error) {
