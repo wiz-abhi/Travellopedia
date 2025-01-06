@@ -2,37 +2,94 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import {
-  MapPin,
-  Calendar,
-  Plane,
-  Hotel,
-  Cloud,
-  DollarSign,
-  Lightbulb,
-  Bookmark,
-} from 'lucide-react'
+import { LucideIcon, MapPin, Calendar, Plane, Hotel, Cloud, DollarSign, Lightbulb, Bookmark } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useUser } from '@clerk/nextjs'
 import { SearchForm } from './components/search-form'
-import { ResultCard } from './components/result-card'
 import { DateRangePicker } from './components/date-range-picker'
 import { ExperienceInput } from './components/experience-input'
 import { Suggestions } from './components/suggestions'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
-// TravelInfo type definition
-type TravelInfo = {
-  attractions: string[]
-  best_time: string
-  transportation: string[]
-  accommodation: string[]
-  weather: string
-  estimated_budget: string
-  personalized_suggestions: string[]
+// ResultCard Types and Component
+type ContentItem = {
+  name?: string
+  price_range?: string
+  description?: string
+  [key: string]: any
 }
 
+type Content = string | string[] | ContentItem[]
+
+interface ResultCardProps {
+  icon: LucideIcon
+  title: string
+  content: Content
+  className?: string
+}
+
+const ResultCard = ({
+  icon: Icon,
+  title,
+  content,
+  className = '',
+}: ResultCardProps) => {
+  const renderContentItem = (item: string | ContentItem, index: number) => {
+    if (typeof item === 'string') {
+      return <li key={index}>{item}</li>
+    }
+
+    if (typeof item === 'object' && item !== null) {
+      const displayText = item.name || item.value || JSON.stringify(item)
+      const details = item.price_range || item.description || ''
+      return (
+        <li key={index}>
+          <span className="font-medium">{displayText}</span>
+          {details && <span className="text-gray-600"> - {details}</span>}
+        </li>
+      )
+    }
+
+    return null
+  }
+
+  const renderContent = () => {
+    if (Array.isArray(content)) {
+      return content.map((item, index) => renderContentItem(item, index))
+    }
+    return <p className="mt-2">{content}</p>
+  }
+
+  return (
+    <Card className={`p-6 ${className}`}>
+      <div className="flex items-center gap-2 mb-4">
+        <Icon className="h-5 w-5" />
+        <h3 className="font-semibold">{title}</h3>
+      </div>
+      {Array.isArray(content) ? (
+        <ul className="list-disc list-inside space-y-2">
+          {renderContent()}
+        </ul>
+      ) : (
+        renderContent()
+      )}
+    </Card>
+  )
+}
+
+// ExplorePage Types
+type TravelInfo = {
+  attractions: any[]
+  best_time: string
+  transportation: any[]
+  accommodation: any[]
+  weather: string
+  estimated_budget: string
+  personalized_suggestions: any[]
+}
+
+// Main ExplorePage Component
 export default function ExplorePage() {
   const [results, setResults] = useState<TravelInfo | null>(null)
   const [loading, setLoading] = useState(false)
@@ -42,6 +99,7 @@ export default function ExplorePage() {
     from: new Date(),
     to: new Date(),
   })
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   const { isSignedIn } = useUser()
 
@@ -57,12 +115,13 @@ export default function ExplorePage() {
     }
 
     setLoading(true)
+    setError(null)
     try {
       const response = await fetch('/api/explore', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...data,
+          query: data.query,
           experience,
           dateRange,
         }),
@@ -75,6 +134,8 @@ export default function ExplorePage() {
       const result = await response.json()
       setResults(result)
     } catch (error) {
+      console.error(error)
+      setError('Failed to fetch travel information. Please try again.')
       toast({
         title: 'Error',
         description: 'Failed to fetch travel information. Please try again.',
@@ -88,7 +149,7 @@ export default function ExplorePage() {
     if (!results || !searchQuery) return
 
     try {
-      await fetch('/api/bookmarks', {
+      const response = await fetch('/api/bookmarks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -98,6 +159,10 @@ export default function ExplorePage() {
             'https://images.unsplash.com/photo-1488085061387-422e29b40080',
         }),
       })
+
+      if (!response.ok) {
+        throw new Error('Failed to save bookmark')
+      }
 
       toast({
         title: 'Success',
@@ -141,7 +206,19 @@ export default function ExplorePage() {
             </div>
           </Card>
 
-          {results && (
+          {error && (
+            <div className="bg-red-500 text-white p-4 rounded mb-8">
+              <strong>{error}</strong>
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex justify-center mb-8">
+              <div className="animate-spin border-t-4 border-blue-500 border-solid rounded-full h-12 w-12"></div>
+            </div>
+          )}
+
+          {results && !loading && (
             <>
               <div className="flex justify-end mb-4">
                 <Button onClick={handleBookmark} variant="outline">
@@ -153,37 +230,37 @@ export default function ExplorePage() {
                 <ResultCard
                   icon={MapPin}
                   title="Must-Visit Places"
-                  content={results?.attractions} // Optional chaining
+                  content={results?.attractions || []}
                 />
                 <ResultCard
                   icon={Calendar}
                   title="Best Time to Visit"
-                  content={results?.best_time} // Optional chaining
+                  content={results?.best_time || ''}
                 />
                 <ResultCard
                   icon={Plane}
                   title="Getting Around"
-                  content={results?.transportation} // Optional chaining
+                  content={results?.transportation || []}
                 />
                 <ResultCard
                   icon={Hotel}
                   title="Where to Stay"
-                  content={results?.accommodation} // Optional chaining
+                  content={results?.accommodation || []}
                 />
                 <ResultCard
                   icon={Cloud}
                   title="Weather"
-                  content={results?.weather} // Optional chaining
+                  content={results?.weather || ''}
                 />
                 <ResultCard
                   icon={DollarSign}
                   title="Budget Estimate"
-                  content={results?.estimated_budget} // Optional chaining
+                  content={results?.estimated_budget || ''}
                 />
                 <ResultCard
                   icon={Lightbulb}
                   title="Personalized Suggestions"
-                  content={results?.personalized_suggestions} // Optional chaining
+                  content={results?.personalized_suggestions || []}
                   className="md:col-span-2"
                 />
               </div>
