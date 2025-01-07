@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { useSearchParams } from 'next/navigation'
 import { LucideIcon, MapPin, Calendar, Plane, Hotel, Cloud, DollarSign, Lightbulb, Bookmark } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useUser } from '@clerk/nextjs'
@@ -11,6 +12,9 @@ import { ExperienceInput } from './components/experience-input'
 import { Suggestions } from './components/suggestions'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { SignUpButton } from '@clerk/nextjs'
+import { hasGuestQueriesRemaining, incrementGuestQueries, getRemainingQueries } from '@/lib/guest-mode'
+
 
 // ResultCard Types and Component
 type ContentItem = {
@@ -102,38 +106,61 @@ export default function ExplorePage() {
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   const { isSignedIn } = useUser()
+  const searchParams = useSearchParams()
+  const isGuestMode = searchParams.get('mode') === 'guest'
 
   const handleSearch = async (data: { query: string }) => {
     setSearchQuery(data.query)
-    if (!isSignedIn) {
+      
+    if (!isSignedIn && !isGuestMode) {
       toast({
         title: 'Authentication required',
-        description: 'Please sign in to use this feature',
+        description: 'Please sign in or use guest mode to continue',
         variant: 'destructive',
       })
-      console.log(results?.accommodation);
       return
     }
-
+  
+    if (isGuestMode && !hasGuestQueriesRemaining()) {
+      toast({
+        title: 'Guest queries limit reached',
+        description: 'Please sign up to continue using our service',
+        variant: 'destructive',
+      })
+      return
+    }
+  
     setLoading(true)
     setError(null)
     try {
+      // The guest mode status will be detected from the URL by the API
       const response = await fetch('/api/explore', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           query: data.query,
           experience,
           dateRange,
         }),
       })
-
+  
       if (!response.ok) {
         throw new Error('Failed to fetch travel information')
       }
-
+  
       const result = await response.json()
       setResults(result)
+  
+      if (isGuestMode) {
+        const remainingQueries = getRemainingQueries() - 1
+        incrementGuestQueries()
+        toast({
+          title: 'Guest Mode',
+          description: `${remainingQueries} queries remaining`,
+        })
+      }
     } catch (error) {
       console.error(error)
       setError('Failed to fetch travel information. Please try again.')
@@ -178,6 +205,7 @@ export default function ExplorePage() {
     }
   }
 
+
   return (
     <div className="min-h-screen bg-background">
       <div className="relative h-[300px] mb-8">
@@ -196,16 +224,28 @@ export default function ExplorePage() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <Card className="p-6 mb-8">
-            <div className="grid gap-6">
-              <Suggestions
-                onSelect={(place) => handleSearch({ query: place })}
-              />
-              <SearchForm onSubmit={handleSearch} loading={loading} />
-              <ExperienceInput value={experience} onChange={setExperience} />
-              <DateRangePicker onDateChange={setDateRange} />
-            </div>
-          </Card>
+          {isGuestMode && !hasGuestQueriesRemaining() && (
+            <Card className="p-6 mb-8 text-center">
+              <h2 className="text-xl font-semibold mb-4">Guest Query Limit Reached</h2>
+              <p className="mb-6">Sign up to continue exploring and get unlimited access!</p>
+              <SignUpButton mode="modal">
+                <Button size="lg">Sign Up Now</Button>
+              </SignUpButton>
+            </Card>
+          )}
+
+          {(hasGuestQueriesRemaining() || isSignedIn) && (
+            <Card className="p-6 mb-8">
+              <div className="grid gap-6">
+                <Suggestions
+                  onSelect={(place) => handleSearch({ query: place })}
+                />
+                <SearchForm onSubmit={handleSearch} loading={loading} />
+                <ExperienceInput value={experience} onChange={setExperience} />
+                <DateRangePicker onDateChange={setDateRange} />
+              </div>
+            </Card>
+          )}
 
           {error && (
             <div className="bg-red-500 text-white p-4 rounded mb-8">

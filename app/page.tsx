@@ -6,7 +6,6 @@ import { ArrowRight } from 'lucide-react'
 export default function Home() {
   return (
     <div className="relative min-h-[calc(100vh-4rem)]">
-      {/* Hero Image */}
       <div className="absolute inset-0 z-0">
         <Image
           src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800"
@@ -17,7 +16,6 @@ export default function Home() {
         />
       </div>
 
-      {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-4 text-center text-white">
         <h1 className="text-5xl font-bold tracking-tighter sm:text-6xl md:text-7xl lg:text-8xl mb-6">
           Your Journey Begins Here
@@ -26,15 +24,20 @@ export default function Home() {
           Discover your perfect adventure with AI-powered travel recommendations,
           personalized itineraries, and real-time weather insights.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 w-full max-w-[700px] sm:max-w-none justify-center">
+        <div className="flex flex-wrap gap-4 justify-center">
           <Link href="/explore">
-            <Button size="lg" className="text-lg w-full sm:w-auto">
+            <Button size="lg" className="text-lg">
               Start Planning
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
+          <Link href="/explore?mode=guest">
+            <Button size="lg" variant="outline" className="text-lg">
+              Try as Guest
+            </Button>
+          </Link>
           <Link href="/bookmarks">
-            <Button size="lg" variant="outline" className="text-lg w-full sm:w-auto">
+            <Button size="lg" variant="outline" className="text-lg">
               Bookmarked Trips
             </Button>
           </Link>
