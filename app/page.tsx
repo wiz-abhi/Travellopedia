@@ -25,23 +25,32 @@ export default function Home() {
           personalized itineraries, and real-time weather insights.
         </p>
         <div className="flex flex-wrap gap-4 justify-center">
-          <Link href="/explore">
+        <Link href="/explore">
             <Button size="lg" className="text-lg">
               Start Planning
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </Link>
-          <Link href="/explore?mode=guest">
-            <Button size="lg" variant="outline" className="text-lg">
-              Try as Guest
-            </Button>
-          </Link>
-          <Link href="/bookmarks">
-            <Button size="lg" variant="outline" className="text-lg">
-              Bookmarked Trips
-            </Button>
-          </Link>
-        </div>
+  <Link href="/explore?mode=guest">
+    <Button
+      size="lg"
+      variant="outline"
+      className="text-lg text-gray-900 border-gray-900 hover:bg-gray-100 dark:text-white dark:border-white dark:hover:bg-gray-800"
+    >
+      Try as Guest
+    </Button>
+  </Link>
+  <Link href="/bookmarks">
+    <Button
+      size="lg"
+      variant="outline"
+      className="text-lg text-gray-900 border-gray-900 hover:bg-gray-100 dark:text-white dark:border-white dark:hover:bg-gray-800"
+    >
+      Bookmarked Trips
+    </Button>
+  </Link>
+</div>
+
       </div>
     </div>
   )

@@ -1,25 +1,65 @@
+// app/api/explore/route.ts
 import { NextResponse } from 'next/server'
 import { openAIClient } from '@/lib/azure-openai'
 import { auth } from '@clerk/nextjs'
 import { headers } from 'next/headers'
+import { ratelimit } from '@/lib/upstash'
+
+// Define our own type for rate limit response
+type RateLimitInfo = {
+  success: boolean
+  limit: number
+  remaining: number
+  reset: number
+  pending: Promise<unknown>
+}
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
   const startTime = performance.now()
-  const TIME_LIMIT = 9800
+  const TIME_LIMIT = 11000
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), TIME_LIMIT)
 
+  // Define rateLimitInfo at the top level of the function
+  let rateLimitInfo: RateLimitInfo | null = null
+  // Define isGuestMode at the top level to be accessible in catch block
+  let isGuestMode = false
+
   try {
-    // Check for both auth and guest mode
+    // Check authentication and guest mode
     const { userId } = auth()
     const headersList = headers()
     const referer = headersList.get('referer') || ''
-    const isGuestMode = referer.includes('mode=guest')
+    isGuestMode = referer.includes('mode=guest')
+    
+    // Get IP for rate limiting
+    const ip = headersList.get('x-forwarded-for') || 'anonymous'
 
     if (!userId && !isGuestMode) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Apply rate limiting for guest users
+    if (isGuestMode) {
+      rateLimitInfo = await ratelimit.limit(ip) as RateLimitInfo
+
+      if (!rateLimitInfo.success) {
+        return NextResponse.json({
+          error: 'Rate limit exceeded',
+          limit: rateLimitInfo.limit,
+          reset: rateLimitInfo.reset,
+          remaining: rateLimitInfo.remaining
+        }, { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitInfo.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitInfo.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitInfo.reset.toString()
+          }
+        })
+      }
     }
 
     const { query, experience, dateRange } = await req.json()
@@ -28,7 +68,6 @@ export async function POST(req: Request) {
       throw new Error('Missing Azure OpenAI Deployment Name')
     }
 
-    // Define the OpenAI request
     const openAIRequest = openAIClient.getChatCompletions(
       process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
       [
@@ -53,7 +92,6 @@ export async function POST(req: Request) {
       ]
     )
 
-    // Use Promise.race to implement a timeout
     const result = await Promise.race([
       openAIRequest,
       new Promise<Error>((_, reject) =>
@@ -75,34 +113,53 @@ export async function POST(req: Request) {
       throw new Error('No response from Azure OpenAI')
     }
 
-    // Clean the response to remove markdown formatting
     const cleanResponse = response
       .replace(/```json/g, '')
       .replace(/```/g, '')
       .trim()
 
-    // Parse the cleaned response
-    return NextResponse.json(JSON.parse(cleanResponse))
+    // Create response with cleaned data
+    const jsonResponse = NextResponse.json(JSON.parse(cleanResponse))
+
+    // Add rate limit headers to successful response if in guest mode
+    if (isGuestMode && rateLimitInfo) {
+      jsonResponse.headers.set('X-RateLimit-Limit', rateLimitInfo.limit.toString())
+      jsonResponse.headers.set('X-RateLimit-Remaining', rateLimitInfo.remaining.toString())
+      jsonResponse.headers.set('X-RateLimit-Reset', rateLimitInfo.reset.toString())
+    }
+
+    return jsonResponse
+
   } catch (error) {
     console.error('Error:', error)
 
-    if (error instanceof Error) {
-      if (error.message === 'Timeout' || error.message.includes('network')) {
-        return NextResponse.json(
-          { error: 'Slow Internet Connection. Please try again later.' },
-          { status: 504 }
-        )
+    // Create error response with appropriate status and message
+    const errorResponse = (message: string, status: number) => {
+      const response = NextResponse.json({ error: message }, { status })
+      
+      // Add rate limit headers to error responses if in guest mode
+      if (isGuestMode && rateLimitInfo) {
+        response.headers.set('X-RateLimit-Limit', rateLimitInfo.limit.toString())
+        response.headers.set('X-RateLimit-Remaining', rateLimitInfo.remaining.toString())
+        response.headers.set('X-RateLimit-Reset', rateLimitInfo.reset.toString())
       }
-
-      return NextResponse.json(
-        { error: 'Failed to process request. Please try again later.' },
-        { status: 500 }
-      )
+      
+      return response
     }
 
-    return NextResponse.json(
-      { error: 'Unknown error occurred. Please try again later.' },
-      { status: 500 }
-    )
+    if (error instanceof Error) {
+      if (error.message === 'Timeout' || error.message.includes('network')) {
+        return errorResponse('Slow Internet Connection. Please try again later.', 504)
+      }
+
+      // Handle JSON parsing errors
+      if (error instanceof SyntaxError && error.message.includes('JSON')) {
+        return errorResponse('Invalid response format. Please try again.', 500)
+      }
+
+      return errorResponse('Failed to process request. Please try again later.', 500)
+    }
+
+    return errorResponse('Unknown error occurred. Please try again later.', 500)
   }
 }
