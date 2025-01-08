@@ -17,7 +17,7 @@ export function AuthButton({ closeMenu }: AuthButtonProps) {
       <>
         {/* Call closeMenu when the UserButton is rendered or after a user action */}
         {closeMenu && (
-          <Link href="/" onClick={closeMenu}>
+          <Link href="/">
             <UserButton afterSignOutUrl="/" />
           </Link>
         )}

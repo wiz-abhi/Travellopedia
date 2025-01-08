@@ -2,15 +2,18 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Plane, Menu} from 'lucide-react'
+import { Plane, Menu } from 'lucide-react'
 import { AuthButton } from '@/components/auth/auth-button'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { useUser } from '@clerk/nextjs'
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const { isSignedIn } = useUser() // Check if the user is signed in
 
   const navLinks = [
     { href: '/explore', label: 'Explore' },
@@ -51,9 +54,13 @@ export function Navigation() {
           </div>
           
           <div className="flex items-center">
+            <div className='flex items-center gap-4'>
+            {isSignedIn?
+            <div className='block sm:hidden'><AuthButton closeMenu={handleClose} /></div>: <div></div>} 
             <ThemeToggle />
+            </div>
             <div className="hidden sm:block">
-              <AuthButton closeMenu={closeMenu} /> {/* Pass closeMenu to AuthButton */}
+              <AuthButton closeMenu={closeMenu} /> 
             </div>
             
             {/* Mobile Menu */}
@@ -82,7 +89,12 @@ export function Navigation() {
                       </Link>
                     ))}
                     <div className="pt-4 mt-4 border-t">
-                      <AuthButton closeMenu={handleClose} /> {/* Close menu when AuthButton is clicked */}
+                      {/* Conditionally render AuthButton left to ThemeToggle if signed in */}
+                      {isSignedIn ? (
+                        <div></div>
+                      ) : (
+                        <AuthButton closeMenu={handleClose} /> 
+                      )}
                     </div>
                   </div>
                 </SheetContent>

@@ -10,7 +10,7 @@ export const redis = new Redis({
 // Create a new ratelimiter that allows 5 requests per day
 export const ratelimit = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(7, "1 d"),
+  limiter: Ratelimit.slidingWindow(5, "1 d"),
   analytics: true,
   prefix: "guest_ratelimit",
 })
